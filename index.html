@@ -1,0 +1,991 @@
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=Instrument+Serif:ital,wght@0,400;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+
+<style>
+:root {
+  /* Claude Aesthetic - "Artifact" Palette */
+  --color-primary: #cc785c; /* Subdued Terra Cotta */
+  --color-primary-hover: #b3654a;
+  --color-primary-soft: #fcf6f4;
+  --color-bg-main: #f9f8f6; /* Warm Paper */
+  --color-bg-card: #ffffff;
+  --color-text-main: #1d1b1a; /* Soft charcoal */
+  --color-text-muted: #6b6967;
+  --color-text-light: #9e9c9a;
+  --color-border: #e8e6e1;
+  --color-border-soft: #f3f1ed;
+  
+  /* Semantic Tones - Muted */
+  --color-info: #5b7c8c;
+  --color-success: #638c75;
+  --color-warning: #b58d5a;
+  --color-danger: #a65a5a;
+  
+  /* Typography */
+  --font-serif: 'Instrument Serif', serif;
+  --font-sans: 'Inter', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  /* Layout & Surface */
+  --sidebar-width: 280px;
+  --radius-md: 10px;
+  --radius-lg: 16px;
+  --shadow-warm: 0 2px 8px -2px rgba(29, 27, 26, 0.04), 0 4px 16px -4px rgba(29, 27, 26, 0.02);
+  --transition: all 0.2s ease;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --color-bg-main: #141413;
+    --color-bg-card: #1c1c1b;
+    --color-text-main: #eceae7;
+    --color-text-muted: #9e9c9a;
+    --color-text-light: #6b6967;
+    --color-border: #2a2a28;
+    --color-border-soft: #222221;
+    --color-primary-soft: rgba(204, 120, 92, 0.08);
+  }
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+
+body {
+  font-family: var(--font-sans);
+  color: var(--color-text-main);
+  background-color: var(--color-bg-main);
+  line-height: 1.7;
+  font-size: 16px;
+  -webkit-font-smoothing: antialiased;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+  border-width: 0;
+}
+
+.layout {
+  display: flex;
+  min-height: 100vh;
+}
+
+.sidebar {
+  width: var(--sidebar-width);
+  background-color: var(--color-bg-main);
+  padding: 4rem 1.5rem;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.sidebar-title {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-light);
+  padding: 0 1rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  margin-bottom: 0.5rem;
+}
+
+.nav-item {
+  display: flex;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  font-size: 0.95rem;
+  font-weight: 500;
+  color: var(--color-text-muted);
+  border-radius: var(--radius-md);
+  cursor: pointer;
+  transition: var(--transition);
+}
+
+.nav-item:hover {
+  background-color: var(--color-border-soft);
+  color: var(--color-text-main);
+}
+
+.nav-item.active {
+  background-color: var(--color-bg-card);
+  color: var(--color-primary);
+  font-weight: 600;
+  box-shadow: var(--shadow-warm);
+}
+
+.content-wrapper {
+  flex: 1;
+  display: flex;
+  justify-content: center;
+  padding: 4rem 2rem;
+}
+
+.content {
+  max-width: 880px;
+  width: 100%;
+  background-color: var(--color-bg-card);
+  padding: 5rem 5rem;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--color-border);
+  box-shadow: var(--shadow-warm);
+  min-height: calc(100vh - 10rem);
+}
+
+.section { display: none; opacity: 0; transition: opacity 0.4s ease-in-out; }
+.section.active { display: block; opacity: 1; }
+
+.section-header {
+  margin-bottom: 4rem;
+  text-align: center;
+}
+
+.section-header h2 {
+  font-family: var(--font-serif);
+  font-size: 3.5rem;
+  font-weight: 400;
+  color: var(--color-text-main);
+  line-height: 1.1;
+  margin-bottom: 1.5rem;
+  font-style: italic;
+}
+
+.section-header p {
+  font-size: 1.25rem;
+  color: var(--color-text-muted);
+  max-width: 600px;
+  margin: 0 auto;
+}
+
+h3 {
+  font-family: var(--font-serif);
+  font-size: 2rem;
+  font-weight: 400;
+  margin: 4rem 0 1.5rem;
+  color: var(--color-text-main);
+  border-bottom: 1px solid var(--color-border-soft);
+  padding-bottom: 0.75rem;
+}
+
+p { margin-bottom: 1.5rem; color: var(--color-text-main); opacity: 0.9; }
+
+code {
+  font-family: var(--font-mono);
+  font-size: 0.9em;
+  background-color: var(--color-border-soft);
+  padding: 0.15rem 0.4rem;
+  border-radius: 4px;
+  color: var(--color-primary);
+}
+
+pre {
+  background-color: var(--color-bg-main);
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-md);
+  padding: 1.5rem;
+  font-family: var(--font-mono);
+  font-size: 0.85rem;
+  overflow-x: auto;
+  margin: 2.5rem 0;
+  color: var(--color-text-muted);
+}
+
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+  gap: 2.5rem;
+  margin: 3.5rem 0;
+  padding: 2.5rem;
+  background-color: var(--color-bg-main);
+  border-radius: var(--radius-md);
+}
+
+.metric .lbl {
+  font-size: 0.7rem;
+  font-weight: 600;
+  color: var(--color-text-light);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  margin-bottom: 0.5rem;
+}
+
+.metric .val {
+  font-family: var(--font-serif);
+  font-size: 2.75rem;
+  color: var(--color-primary);
+  line-height: 1;
+}
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.7rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  margin-right: 0.75rem;
+}
+
+.bi { background: var(--color-bg-main); color: var(--color-text-muted); border: 1px solid var(--color-border); }
+.bh { background: #fdf2f2; color: var(--color-danger); }
+.bm { background: #fdf8f2; color: var(--color-warning); }
+.bl { background: #f2fdf6; color: var(--color-success); }
+
+.risk-item {
+  padding: 2rem 0;
+  border-bottom: 1px solid var(--color-border-soft);
+}
+
+.risk-item:last-child { border-bottom: none; }
+.risk-top { display: flex; align-items: center; margin-bottom: 0.5rem; }
+.risk-title { font-family: var(--font-serif); font-size: 1.6rem; color: var(--color-text-main); }
+.risk-body { font-size: 1rem; color: var(--color-text-muted); }
+
+.flow { border-left: 2px solid var(--color-border-soft); padding-left: 2rem; margin: 3rem 0; display: flex; flex-direction: column; gap: 1.5rem; }
+.flow-step { font-weight: 500; font-size: 1.05rem; position: relative; }
+.flow-step::before { content: ''; position: absolute; left: calc(-2rem - 6px); top: 10px; width: 10px; height: 10px; border-radius: 50%; background: var(--color-border); border: 2px solid var(--color-bg-card); }
+.flow-arrow { display: none; }
+
+.feat-grid { display: grid; gap: 3rem; margin: 4rem 0; }
+.feat { }
+.feat-name { font-family: var(--font-serif); font-size: 1.5rem; font-style: italic; color: var(--color-text-main); margin-bottom: 0.5rem; }
+.feat-math { font-family: var(--font-mono); font-size: 0.85rem; color: var(--color-primary); margin-bottom: 0.75rem; }
+.feat-why { font-size: 1rem; color: var(--color-text-muted); }
+
+.func-list { list-style: none; }
+.func-item { border-bottom: 1px solid var(--color-border-soft); }
+.func-header { display: flex; flex-direction: column; padding: 2.5rem 0; cursor: pointer; }
+.func-name { font-family: var(--font-mono); font-size: 1rem; color: var(--color-primary); margin-bottom: 0.5rem; }
+.func-short { font-family: var(--font-serif); font-size: 1.6rem; color: var(--color-text-main); font-style: italic; }
+.func-toggle { display: none; }
+
+.func-detail { padding: 0 0 3rem 0; display: none; grid-template-columns: 140px 1fr; gap: 1rem 2rem; }
+.func-detail.open { display: grid; }
+.func-detail .dk { font-size: 0.7rem; font-weight: 700; color: var(--color-text-light); text-transform: uppercase; letter-spacing: 0.1em; padding-top: 0.4rem; }
+.func-detail .dv { font-size: 1rem; color: var(--color-text-main); line-height: 1.7; }
+
+.label-table { width: 100%; border-collapse: collapse; margin: 3rem 0; }
+.label-table th { text-align: left; padding: 1.5rem 0; border-bottom: 1px solid var(--color-text-main); font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.1em; font-weight: 700; }
+.label-table td { padding: 2rem 0; border-bottom: 1px solid var(--color-border-soft); font-size: 0.95rem; }
+
+.audience-who { font-family: var(--font-serif); font-size: 2.5rem; color: var(--color-primary); font-style: italic; margin-bottom: 1.5rem; }
+
+.impr-row { display: flex; gap: 1.5rem; margin-bottom: 2.5rem; align-items: flex-start; }
+.impr-dot { width: 4px; height: 4px; border-radius: 50%; margin-top: 0.9rem; flex-shrink: 0; background: var(--color-primary); }
+
+@media (max-width: 1024px) {
+  .layout { flex-direction: column; }
+  .sidebar { width: 100%; height: auto; padding: 2rem; border-right: none; border-bottom: 1px solid var(--color-border); }
+  .content-wrapper { padding: 2rem 1rem; }
+  .content { padding: 3rem 1.5rem; border: none; }
+  .section-header h2 { font-size: 2.75rem; }
+}
+</style>
+
+<h2 class="sr-only" style="position:absolute;left:-9999px">ExoMetrix training code documentation — 11 sections covering
+  pipeline, functions, features, risks and improvements</h2>
+
+<div class="layout">
+  <div class="sidebar">
+    <div class="sidebar-title">Sections</div>
+    <span class="nav-item active" onclick="show('s1',this)">Executive summary</span>
+    <span class="nav-item" onclick="show('s2',this)">Pipeline walkthrough</span>
+    <span class="nav-item" onclick="show('s3',this)">Function reference</span>
+    <span class="nav-item" onclick="show('s4',this)">Feature engineering</span>
+    <span class="nav-item" onclick="show('s5',this)">Labeling & dataset</span>
+    <span class="nav-item" onclick="show('s6',this)">Model training</span>
+    <span class="nav-item" onclick="show('s7',this)">Saved artifacts</span>
+    <span class="nav-item" onclick="show('s8',this)">Risk review</span>
+    <span class="nav-item" onclick="show('s9',this)">Improvement roadmap</span>
+    <span class="nav-item" onclick="show('s10',this)">Commands</span>
+    <span class="nav-item" onclick="show('s11',this)">Audience summaries</span>
+  </div>
+
+  <div class="content-wrapper">
+    <div class="content">
+
+    <div class="section active" id="s1">
+      <div class="section-header">
+        <h2>Executive summary</h2>
+        <p>What the code does and what it produced</p>
+      </div>
+      <p>ExoMetrix trains a two-stage ML pipeline for real-time gait analysis. The code reads raw goniometer (joint
+        angle) data from the Camargo et al. AB subject biomechanics dataset, extracts signals from MATLAB files,
+        calibrates them to a clinical range, then trains three models that ship together as a single
+        <code>.joblib</code> artifact.</p>
+      <div class="metrics">
+        <div class="metric">
+          <div class="lbl">Subjects</div>
+          <div class="val">3</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">Angle samples</div>
+          <div class="val">868K</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">Supervised windows</div>
+          <div class="val">434</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">Classifier accuracy</div>
+          <div class="val">93.1%</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">Feature dimensions</div>
+          <div class="val">14</div>
+        </div>
+      </div>
+      <h3>Three models trained</h3>
+      <div class="risk-item">
+        <div class="risk-top"><span class="badge bi">1</span><span class="risk-title">Anomaly detector —
+            IsolationForest</span></div>
+        <div class="risk-body">Flags unusual gait angles as compensating steps. Trained on 868K calibrated angle samples
+          with RobustScaler preprocessing.</div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-top"><span class="badge bi">2</span><span class="risk-title">Activity classifier —
+            RandomForest</span></div>
+        <div class="risk-body">Identifies locomotion type: levelground, ramp, stair, treadmill. Trained on 14-feature
+          window vectors with 434 labeled examples.</div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-top"><span class="badge bi">3</span><span class="risk-title">Intention classifier —
+            RandomForest</span></div>
+        <div class="risk-body">Predicts movement intent: walking, running, upstairs, ramp_up. Same feature matrix as
+          activity classifier, different labels.</div>
+      </div>
+      <h3>Runtime outputs per prediction call</h3>
+      <p>Step quality classification · Assistance percentage (0–95%) · Anomaly score (0–1) · Activity class · Intention
+        class · Cadence (steps/min) · Toe clearance (mm) · Gait phase · Model confidence</p>
+    </div>
+
+    <div class="section" id="s2">
+      <div class="section-header">
+        <h2>Pipeline walkthrough</h2>
+        <p>What happens from running the script to saving the model</p>
+      </div>
+      <div class="flow">
+        <div class="flow-step">1. Parse CLI args</div><span class="flow-arrow">→</span>
+        <div class="flow-step">2. Discover subjects</div><span class="flow-arrow">→</span>
+        <div class="flow-step">3. Load MAT files</div><span class="flow-arrow">→</span>
+        <div class="flow-step">4. Extract signals</div><span class="flow-arrow">→</span>
+        <div class="flow-step">5. Calibrate angles</div><span class="flow-arrow">→</span>
+        <div class="flow-step">6. Train anomaly model</div><span class="flow-arrow">→</span>
+        <div class="flow-step">7. Compute features</div><span class="flow-arrow">→</span>
+        <div class="flow-step">8. Train classifiers</div><span class="flow-arrow">→</span>
+        <div class="flow-step">9. Save artifact</div>
+      </div>
+
+      <h3>Step 1 — argument parsing</h3>
+      <p>The CLI accepts <code>--dataset-root</code>, <code>--subject-glob</code>, <code>--output-model</code>, and
+        <code>--output-meta</code>. Defaults assume the training script lives two levels below the dataset root.</p>
+
+      <h3>Step 2 — subject discovery</h3>
+      <p>Checks whether <code>dataset_root</code> is already a single subject folder (detected by looking for an
+        <code>osimxml/</code> child) or a parent of multiple subjects. Globs for <code>AB*</code> folders containing
+        <code>osimxml/</code>. Works for training on AB06 alone or AB06+AB07+AB08 transparently.</p>
+
+      <h3>Step 3 & 4 — MAT loading and signal extraction</h3>
+      <p>Each <code>gon/*.mat</code> file is loaded with scipy first, then h5py as a fallback for MATLAB v7.3 HDF5
+        files. Signal extraction tries normal numpy array traversal first, then falls back to parsing the MATLAB opaque
+        workspace blob as raw float64 bytes. Signals are clipped to −220…+220° and downsampled to at most 2000 samples
+        per file.</p>
+
+      <h3>Step 5 — global calibration</h3>
+      <p>All subjects' angles are pooled and linearly rescaled so the 1st–99th percentile range maps to 5°–120° (the
+        typical clinical gait range). Values are hard-clipped to 0–180°. This ensures the anomaly model trains on a
+        clinically meaningful scale.</p>
+
+      <h3>Step 6 — anomaly model training</h3>
+      <p>Calibrated angles are reshaped to (N, 1) and standardized with <code>RobustScaler</code>. An
+        <code>IsolationForest</code> with 300 trees and 8% contamination is trained. The 1st and 5th percentile of the
+        resulting decision scores are stored as normalization bounds used at runtime.</p>
+
+      <h3>Step 7 — window features</h3>
+      <p>The script iterates the same MAT files a second time. Each file's full signal is treated as one window, and 14
+        statistical features are computed from it. Labels come from the file's directory path.</p>
+
+      <h3>Step 8 — classifier training</h3>
+      <p>Both RandomForest classifiers receive the same 434-row feature matrix. An 80/20 stratified split validates
+        accuracy. Both scored 93.1% on the 87-window holdout.</p>
+
+      <h3>Step 9 — artifact saving</h3>
+      <p>Everything is packed into a single dict and saved with <code>joblib.dump()</code>. A JSON metadata file is also
+        written for the Flask backend status endpoint.</p>
+    </div>
+
+    <div class="section" id="s3">
+      <div class="section-header">
+        <h2>Function reference</h2>
+        <p>Click any function to expand its details</p>
+      </div>
+      <ul class="func-list" id="func-list"></ul>
+    </div>
+
+    <div class="section" id="s4">
+      <div class="section-header">
+        <h2>Feature engineering</h2>
+        <p>The 14 statistical features computed per window</p>
+      </div>
+      <p>Each MAT file is treated as one signal window. 14 statistics are extracted — 8 positional, 4 velocity-based, 1
+        energy, 1 temporal structure metric. Velocity is computed as first differences of sample values, not
+        time-normalized.</p>
+      <div class="feat-grid">
+        <div class="feat">
+          <div class="feat-name">mean_angle</div>
+          <div class="feat-math">μ = (1/N) Σ xᵢ</div>
+          <div class="feat-why">Average joint position — separates treadmill (low) from stair (high)</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">std_angle</div>
+          <div class="feat-math">σ = √Var(x)</div>
+          <div class="feat-why">Motion spread. High for stairs, low for constrained treadmill</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">min_angle</div>
+          <div class="feat-math">min(x)</div>
+          <div class="feat-why">Minimum joint position during window</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">max_angle</div>
+          <div class="feat-math">max(x)</div>
+          <div class="feat-why">Stair needs high max; asymmetry encodes ramp</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">range_angle</div>
+          <div class="feat-math">max(x) − min(x)</div>
+          <div class="feat-why">Total arc. Reduced range may indicate stiffness</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">median_angle</div>
+          <div class="feat-math">x̃ = pct(x, 50)</div>
+          <div class="feat-why">Robust central tendency — differs from mean on skewed ramp signals</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">p10_angle</div>
+          <div class="feat-math">pct(x, 10)</div>
+          <div class="feat-why">Robust lower bound, resistant to outliers</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">p90_angle</div>
+          <div class="feat-math">pct(x, 90)</div>
+          <div class="feat-why">Robust upper bound, resistant to outliers</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">mean_abs_velocity</div>
+          <div class="feat-math">(1/N−1) Σ |Δxᵢ|</div>
+          <div class="feat-why">Average angular speed. Running → high; slow walking → low</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">std_velocity</div>
+          <div class="feat-math">σ(Δx)</div>
+          <div class="feat-why">Speed irregularity. High for stairs, low for treadmill</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">max_velocity</div>
+          <div class="feat-math">max(Δx)</div>
+          <div class="feat-why">Peak forward angular acceleration</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">min_velocity</div>
+          <div class="feat-math">min(Δx)</div>
+          <div class="feat-why">Peak reverse angular acceleration</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">energy</div>
+          <div class="feat-math">(1/N) Σ (xᵢ−μ)²</div>
+          <div class="feat-why">Actually variance — redundant with std² but kept for naming clarity</div>
+        </div>
+        <div class="feat">
+          <div class="feat-name">peak_density</div>
+          <div class="feat-math">peaks / N, t=μ+0.25σ</div>
+          <div class="feat-why">Approximate step frequency. Irregular gait → unusual density</div>
+        </div>
+      </div>
+      <p
+        style="font-size:12px;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:8px 10px;border-radius:var(--border-radius-md)">
+        <span class="badge bm">Note</span> Velocity features are not time-normalized. Files are downsampled at different
+        strides (step = size ÷ 2000), so velocity units differ across files — a known design issue.</p>
+    </div>
+
+    <div class="section" id="s5">
+      <div class="section-header">
+        <h2>Labeling and dataset</h2>
+        <p>Where labels come from and where they may be wrong</p>
+      </div>
+      <p>Labels come entirely from file system paths — there is no human-annotated label file. The grandparent folder
+        name gives the activity, and the filename stem provides intent signals.</p>
+
+      <table class="label-table">
+        <thead>
+          <tr>
+            <th>Folder</th>
+            <th>Activity class</th>
+            <th>Intention class</th>
+            <th>How decided</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>levelground/</code></td>
+            <td>levelground</td>
+            <td>walking or running</td>
+            <td><code>_fast_</code> in filename → running; else walking</td>
+          </tr>
+          <tr>
+            <td><code>stair/</code></td>
+            <td>stair</td>
+            <td>upstairs</td>
+            <td>Always upstairs — descent not captured</td>
+          </tr>
+          <tr>
+            <td><code>ramp/</code></td>
+            <td>ramp</td>
+            <td>ramp_up</td>
+            <td>Always ramp_up — descent not captured</td>
+          </tr>
+          <tr>
+            <td><code>treadmill/</code></td>
+            <td>treadmill</td>
+            <td>walking</td>
+            <td>Always walking — speed variation not captured</td>
+          </tr>
+          <tr>
+            <td>anything else</td>
+            <td>unknown</td>
+            <td>walking</td>
+            <td>Fallback; unknown class not used by classifiers</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Label counts (from training run)</h3>
+      <div class="metrics">
+        <div class="metric">
+          <div class="lbl">levelground</div>
+          <div class="val">97</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">ramp</div>
+          <div class="val">193</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">stair</div>
+          <div class="val">120</div>
+        </div>
+        <div class="metric">
+          <div class="lbl">treadmill</div>
+          <div class="val">24</div>
+        </div>
+      </div>
+
+      <h3>Bias and noise concerns</h3>
+      <div class="risk-item">
+        <div class="risk-top"><span class="badge bh">High</span><span class="risk-title">Stair and ramp descent are
+            absent</span></div>
+        <div class="risk-body">All stair files → "upstairs", all ramp files → "ramp_up" regardless of actual direction.
+          A patient descending stairs will be confidently misclassified.</div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-top"><span class="badge bm">Medium</span><span class="risk-title">Running detection is
+            fragile</span></div>
+        <div class="risk-body">Only files with <code>_fast_</code> in the filename get labelled as running. Renamed
+          files silently become "walking". Only 31 windows currently — the class is thin.</div>
+      </div>
+      <div class="risk-item">
+        <div class="risk-top"><span class="badge bl">Low</span><span class="risk-title">Healthy young adult population
+            only</span></div>
+        <div class="risk-body">3 able-bodied subjects from the AB cohort. No pathological gait, elderly movement, or
+          post-surgical compensation in training data.</div>
+      </div>
+    </div>
+
+    <div class="section" id="s6">
+      <div class="section-header">
+        <h2>Model training decisions</h2>
+        <p>Why each algorithm and parameter was chosen</p>
+      </div>
+
+      <h3>Why RobustScaler?</h3>
+      <p>Gait angle data contains real physiological outliers — sudden jerks, sensor spikes, non-physiological MATLAB
+        fill values. RobustScaler uses the median and IQR instead of mean and std, so spike values don't distort the
+        scale. StandardScaler would pull the scale toward outliers and make the IsolationForest treat normal gait as
+        unusual.</p>
+
+      <h3>Why IsolationForest? Why 8% contamination?</h3>
+      <p>IsolationForest works by randomly splitting features and measuring how quickly a point can be isolated. Genuine
+        outliers get isolated in very few splits; normal inliers need many. It suits this case because: training data
+        has no anomaly labels, it's fast for embedded deployment, and it handles the asymmetric joint-angle distribution
+        well.</p>
+      <p>The <code>contamination=0.08</code> value tells the model to expect ~8% of training samples to be outliers.
+        Since the AB subjects are healthy, this effectively flags "8% of healthy gait as edge-cases worth flagging." A
+        lower value (0.03–0.05) would reduce false positives on real patients.</p>
+
+      <h3>Why RandomForest? Why 350 trees?</h3>
+      <p>RandomForest is robust for small datasets (434 windows) and provides probability estimates needed for
+        confidence scoring. <code>class_weight="balanced_subsample"</code> resamples class weights at each tree
+        independently, handling the ramp/treadmill imbalance. 350 trees is higher than needed — diminishing returns
+        likely set in around 100–150 with 434 samples and 14 features.</p>
+
+      <h3>When is validation skipped?</h3>
+      <p>Validation is skipped when total samples &lt; 30 or any single class has fewer than 2 members (stratified split
+        requires ≥2 per class in both sets). In the current snapshot neither applies, so validation was performed —
+        87-window holdout, single split, 93.1% accuracy.</p>
+
+      <h3>The anomaly score normalization</h3>
+      <p>Raw IsolationForest scores have no natural 0–1 scale. The code stores training score percentiles p01 and p05.
+        At runtime: <code>anomaly_strength = clip((p05 − score) / (p05 − p01), 0, 1)</code>. Current values: p01=−0.113,
+        p05=−0.027 → denominator ≈ 0.086. This narrow band makes scores near the boundary sensitive to small
+        fluctuations.</p>
+
+      <h3>Relationship between anomaly model and classifiers</h3>
+      <p>The two stages are architecturally independent but semantically complementary. The IsolationForest scores a
+        single angle per call: "is this angle consistent with normal gait?" The RandomForests score a 14-feature window:
+        "what kind of activity is this?" A compensating step can occur during any activity — the classifiers still
+        assign the correct activity even when the anomaly detector fires. Both run in parallel inside
+        <code>predict()</code>.</p>
+    </div>
+
+    <div class="section" id="s7">
+      <div class="section-header">
+        <h2>Saved artifacts</h2>
+        <p>What is inside the .joblib file and the metadata JSON</p>
+      </div>
+
+      <h3>joblib artifact keys</h3>
+      <table class="label-table">
+        <thead>
+          <tr>
+            <th>Key</th>
+            <th>Type</th>
+            <th>Purpose at runtime</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>model</code></td>
+            <td>IsolationForest</td>
+            <td>Scores each incoming angle as normal or anomalous</td>
+          </tr>
+          <tr>
+            <td><code>scaler</code></td>
+            <td>RobustScaler</td>
+            <td>Transforms incoming angle to training scale before anomaly scoring</td>
+          </tr>
+          <tr>
+            <td><code>activity_classifier</code></td>
+            <td>RandomForest</td>
+            <td>Predicts activity class from 14-feature window vector</td>
+          </tr>
+          <tr>
+            <td><code>intention_classifier</code></td>
+            <td>RandomForest</td>
+            <td>Predicts intention class from the same window vector</td>
+          </tr>
+          <tr>
+            <td><code>feature_names</code></td>
+            <td>list[str]</td>
+            <td>Documents the 14 feature columns — not used by inference code</td>
+          </tr>
+          <tr>
+            <td><code>angle_stats</code></td>
+            <td>dict</td>
+            <td>mean, std, median, p01, p99 of calibrated training angles</td>
+          </tr>
+          <tr>
+            <td><code>score_stats</code></td>
+            <td>dict</td>
+            <td>p01, p05, p50 of training anomaly scores — used in runtime normalization</td>
+          </tr>
+          <tr>
+            <td><code>meta</code></td>
+            <td>dict</td>
+            <td>Full audit trail: subjects, counts, label distributions, accuracy</td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h3>Key metadata fields explained</h3>
+      <table class="label-table">
+        <thead>
+          <tr>
+            <th>Field</th>
+            <th>Value</th>
+            <th>What it tells you</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>feature_rows_per_subject</code></td>
+            <td>143 / 153 / 138</td>
+            <td>How many MAT files successfully parsed — proxy for data completeness</td>
+          </tr>
+          <tr>
+            <td><code>val_accuracy</code></td>
+            <td>0.931</td>
+            <td>Both classifiers share this value because activity and intention labels are 1:1 correlated in this
+              dataset</td>
+          </tr>
+          <tr>
+            <td><code>p01 / p05</code> (scores)</td>
+            <td>−0.113 / −0.027</td>
+            <td>Normalization band = 0.086. Very narrow — scores near boundary will be noisy</td>
+          </tr>
+          <tr>
+            <td><code>p01 / p99</code> (angles)</td>
+            <td>−0.11° / 120°</td>
+            <td>Confirms calibration worked — lower bound ≈ 0°, upper = 120° target hit</td>
+          </tr>
+          <tr>
+            <td><code>data_decoder</code></td>
+            <td>function_workspace_f64_fallback</td>
+            <td>Records that the opaque workspace decoder was active — important for debugging future parse failures
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div class="section" id="s8">
+      <div class="section-header">
+        <h2>Risk review</h2>
+        <p>Issues prioritized by severity</p>
+      </div>
+      <div id="risk-list"></div>
+    </div>
+
+    <div class="section" id="s9">
+      <div class="section-header">
+        <h2>Improvement roadmap</h2>
+        <p>Quick wins, medium-term upgrades, long-term research</p>
+      </div>
+
+      <h3>Quick wins — this week</h3>
+      <div id="quick-wins"></div>
+      <h3>Medium-term — next month</h3>
+      <div id="medium-wins"></div>
+      <h3>Long-term research</h3>
+      <div id="long-wins"></div>
+    </div>
+
+    <div class="section" id="s10">
+      <div class="section-header">
+        <h2>Reproducible commands</h2>
+        <p>Everything you need to retrain and run the server</p>
+      </div>
+
+      <div class="cmd-block">
+        <div class="cmd-label">Install dependencies</div>
+        <pre>pip install numpy scipy h5py scikit-learn joblib</pre>
+      </div>
+      <div class="cmd-block">
+        <div class="cmd-label">Train — single subject</div>
+        <pre>python train_gait_model.py \
+  --dataset-root /path/to/AB06 \
+  --output-model ./models/gait_model.joblib \
+  --output-meta  ./models/gait_model_meta.json</pre>
+      </div>
+      <div class="cmd-block">
+        <div class="cmd-label">Train — all AB subjects from parent directory</div>
+        <pre>python train_gait_model.py \
+  --dataset-root /path/to/dataset_parent \
+  --subject-glob "AB*" \
+  --output-model ./models/gait_model.joblib \
+  --output-meta  ./models/gait_model_meta.json</pre>
+      </div>
+      <div class="cmd-block">
+        <div class="cmd-label">Verify model loads correctly</div>
+        <pre>import joblib
+artifact = joblib.load("./models/gait_model.joblib")
+print(artifact["meta"]["subject_count"])                    # → 3
+print(artifact["meta"]["supports_activity_classification"]) # → True</pre>
+      </div>
+      <div class="cmd-block">
+        <div class="cmd-label">Run a single prediction</div>
+        <pre>from model_runtime import GaitModelRuntime
+rt = GaitModelRuntime("./models/gait_model.joblib")
+result = rt.predict(
+    angle=65.0,
+    angle_series=[60, 62, 65, 68, 65, 63, 61]
+)
+print(result)
+# {"classification": "Good step", "assistance_percent": 0.0,
+#  "anomaly_score": 0.0, "cadence_spm": ..., "activity_class": ..., ...}</pre>
+      </div>
+      <div class="cmd-block">
+        <div class="cmd-label">Start Flask server</div>
+        <pre>cd backend
+flask run --host=0.0.0.0 --port=5000</pre>
+      </div>
+      <div class="cmd-block">
+        <div class="cmd-label">Expected dataset folder structure</div>
+        <pre>dataset_parent/
+  AB06/
+    osimxml/
+    levelground/gon/*.mat
+    ramp/gon/*.mat
+    stair/gon/*.mat
+    treadmill/gon/*.mat
+  AB07/ ...
+  AB08/ ...</pre>
+      </div>
+    </div>
+
+    <div class="section" id="s11">
+      <div class="section-header">
+        <h2>Audience summaries</h2>
+        <p>The same system explained two different ways</p>
+      </div>
+      <div class="audience-grid">
+        <div class="audience-card">
+          <div class="audience-who">For clinicians</div>
+          <p>ExoMetrix learns what normal walking, stair climbing, and ramp walking look like from joint angle data
+            collected on healthy young adults. When a patient uses the system, it compares their joint angles against
+            this learned normal and flags unusual patterns as "compensating steps." It also estimates the type of
+            movement the patient is doing and how much assistance the exoskeleton should provide.</p>
+          <p>Currently the system has been trained on only three healthy volunteers. It has not been tested on patients
+            recovering from injury or surgery. Estimates for toe clearance and walking phase are approximations, not
+            clinical measurements. Before clinical deployment, the system should be validated against real patient data
+            and outputs — particularly step quality — should be reviewed by a clinician familiar with the patient
+            population.</p>
+        </div>
+        <div class="audience-card">
+          <div class="audience-who">For engineers</div>
+          <p>Two-stage architecture: unsupervised anomaly detector (IsolationForest on univariate calibrated angle,
+            RobustScaler) trained on 868K samples, paired with two supervised classifiers (RandomForest, 350 trees,
+            balanced_subsample) trained on 14 hand-crafted stats per-file window (434 total). Labels are path-derived —
+            no annotation file.</p>
+          <p>Main technical risks: (1) one vector per file vs. the 120-sample runtime window — training and inference
+            features are computed at different temporal scales; (2) velocity features not time-normalized due to
+            variable downsampling strides; (3) anomaly score normalization band of 0.086 is narrow and noisy near the
+            boundary; (4) 93.1% accuracy is a single-split estimate on 87 samples. Priority fixes: sliding-window
+            extraction, k-fold CV, time-normalized velocity, and descent locomotion labels.</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+</div>
+
+<script>
+  var funcs = [
+    { name: "_extract_from_function_workspace()", short: "Decodes MATLAB opaque blobs as raw float64", purpose: "Best-effort decoder for AB06-style MATLAB MCOS table files. Tries 8 byte offsets to handle misalignment. Scores candidates by dynamic range + valid point count.", inputs: "mat_obj dict from scipy", returns: "ndarray or None", edge: "Returns None if blob < 800 bytes. Permissive −220…+220° range to capture all joint kinematic traces." },
+    { name: "_calibrate_to_app_angle_range()", short: "Maps raw angles to 5°–120° clinical range", purpose: "Linear rescale of 1st–99th percentile to 5–120°, then hard-clip to 0–180°. Ensures all subject data lands on the same clinical scale regardless of raw sensor range.", inputs: "raw_angles: ndarray", returns: "calibrated ndarray", edge: "If p1≈p99 (flat signal), clips without scaling. Does not handle negative inputs gracefully — expects pre-filtered −220…+220°." },
+    { name: "_iter_mat_values()", short: "Recursive MAT structure flattener", purpose: "Generator that traverses any scipy MAT structure (nested structs, object arrays, dicts, lists) and yields all numeric arrays. Handles mat_struct via _fieldnames.", inputs: "Any MAT node", returns: "Iterable[ndarray]", edge: "No depth limit — could stack overflow on deeply nested files. Skips keys starting with __ (MATLAB metadata)." },
+    { name: "_load_mat_file()", short: "Loads .mat files with scipy or h5py fallback", purpose: "Tries scipy loadmat first (works for MATLAB <7.3). Falls back to h5py for MATLAB v7.3 HDF5 format. Raises RuntimeError if both fail.", inputs: "path: Path", returns: "dict-like MAT object", edge: "h5py path returns raw numpy arrays without MATLAB struct metadata — some field names may be lost." },
+    { name: "_choose_signal()", short: "Picks the best angle-like time series", purpose: "Scores each candidate array by: variance + 10% of dynamic range + 10× fraction of values within −200…+220°. Selects the highest-scoring series. For multi-column arrays, picks the column with highest std.", inputs: "arrays: List[ndarray]", returns: "ndarray or None", edge: "Requires ≥40 finite values. Angle-plausibility term dominates if the range is compact. May pick a non-angle signal if all angles are flat." },
+    { name: "_extract_best_signal()", short: "Orchestrates signal extraction with downsampling", purpose: "Tries normal path (_iter_mat_values → _choose_signal) first. Falls back to workspace decoder. Applies outlier filter and optional uniform-stride downsampling.", inputs: "mat_obj, max_per_file (optional)", returns: "ndarray or None", edge: "Uniform stride downsampling preserves temporal structure but creates systematic gaps. Random downsampling would be less biased." },
+    { name: "_count_peaks()", short: "Counts local maxima above adaptive threshold", purpose: "Counts local maxima using a 3-point rule: value[i] > value[i-1] and value[i] >= value[i+1] and value[i] > mean + 0.25×std. Used for peak_density feature and cadence estimation.", inputs: "values: ndarray", returns: "int", edge: "Returns 0 for < 3 values. Can double-count wide flat peaks. Threshold is adaptive per window." },
+    { name: "_extract_window_features()", short: "Computes the 14-element feature vector", purpose: "Calculates all 14 features from a signal window: 8 positional stats, 4 velocity-based stats, energy (variance), and peak_density. Pads signals shorter than 6 samples with the last value.", inputs: "values: ndarray", returns: "ndarray[14] float64", edge: "Velocity uses sample-index differences, not time differences. Padding with last value may inflate std for very short windows." },
+    { name: "_derive_labels_from_path()", short: "Infers labels from directory and filename", purpose: "Reads activity class from the grandparent folder name (gon → locomotion type → subject). Reads intention class from filename stem heuristics (_fast_ → running). No annotation file is used.", inputs: "mat_path: Path", returns: "(activity_str, intention_str)", edge: "Unknown folders fall back to activity='unknown', intention='walking'. Descent locomotion (stair down, ramp down) is not captured." },
+    { name: "_collect_labeled_feature_rows()", short: "Builds feature matrix + labels for one subject", purpose: "Iterates all gon MAT files for one subject. For each: loads, extracts signal, calibrates, computes one feature vector, derives labels. Silently skips files that fail to parse.", inputs: "subject_root: Path", returns: "(features, activity_labels, intention_labels)", edge: "One vector per file — entire file collapsed to summary stats. Intra-trial variability is lost." },
+    { name: "_train_classifier()", short: "Trains RandomForest with optional validation", purpose: "Fits a 350-tree RandomForest with balanced_subsample class weights. If ≥30 samples and every class has ≥2 members, uses 80/20 stratified split for validation and records accuracy.", inputs: "X: ndarray, y: list[str]", returns: "(clf or None, metrics dict)", edge: "Returns None classifier if fewer than 2 distinct classes. Validation skipped if any class has < 2 members." },
+    { name: "_collect_angles()", short: "Collects all raw angle samples for anomaly training", purpose: "Walks all gon/*.mat files for one subject. Concatenates all extracted signals into one long array for fitting the IsolationForest.", inputs: "gon_dir: Path, max_per_file", returns: "ndarray 1D", edge: "Raises FileNotFoundError if no .mat files found. Raises RuntimeError if total < 100 samples." },
+    { name: "_resolve_subject_roots()", short: "Auto-detects single vs multi-subject root", purpose: "Checks for osimxml/ child to identify a subject folder. If not found directly, globs for AB* subfolders. Falls back to treating the provided path as a single data root.", inputs: "dataset_root: Path, subject_glob: str", returns: "List[Path]", edge: "osimxml/ detection is specific to the Camargo AB dataset structure — won't work for other dataset layouts." },
+    { name: "train_model()", short: "Top-level orchestrator", purpose: "Chains all steps: subject discovery, angle collection, calibration, anomaly model training, feature extraction, classifier training, artifact and metadata saving.", inputs: "4 Path arguments", returns: "Side effects: 2 files written", edge: "Global calibration (pooled subjects) for anomaly model but per-file calibration for supervised features — these scales may not be fully consistent." }
+  ];
+
+  var risks = [
+    { sev: "bh", label: "High", title: "Descent locomotion is unlabelled", body: "Both stair descent and ramp descent map to 'upstairs' and 'ramp_up'. A patient descending stairs will be confidently misclassified. This is a structural labeling gap, not a data quality issue." },
+    { sev: "bh", label: "High", title: "93.1% accuracy on 87 samples is a weak estimate", body: "A single 80/20 split on 434 samples gives 87 validation windows. Confidence interval is roughly ±5–6%. 5-fold cross-validation would give a much more reliable estimate and is a quick fix." },
+    { sev: "bh", label: "High", title: "Training population: 3 able-bodied young adults", body: "The model has never seen pathological gait, elderly movement, or post-surgical compensation. Clinical deployment without prospective patient validation carries significant risk." },
+    { sev: "bm", label: "Med", title: "Velocity features are not time-normalized", body: "np.diff(values) produces sample-to-sample differences. Files are downsampled at different strides, so velocity units differ across files — noise in all 4 velocity features." },
+    { sev: "bm", label: "Med", title: "Anomaly score normalization denominator is very small", body: "p05 − p01 ≈ 0.086. A score fluctuation of 0.05 changes normalized anomaly_score by ~58%. Widening to p10 − p01 would give more stable values." },
+    { sev: "bm", label: "Med", title: "One feature vector per file — no sliding windows", body: "Each multi-second MAT file collapses to one feature vector. A 30-sample sliding window with 50% overlap would increase training data ~40× and better match the 120-sample runtime window." },
+    { sev: "bm", label: "Med", title: "Runtime sample rate hardcoded at 10 Hz", body: "cadence_spm() assumes 10 samples/sec. If the Flutter app sends data at a different rate (common in BLE IMU pipelines), cadence will be proportionally wrong." },
+    { sev: "bl", label: "Low", title: "energy feature is redundant with std_angle", body: "energy = mean((x − mean(x))²) is exactly variance = std². Not harmful but wastes one of 14 feature slots." },
+    { sev: "bl", label: "Low", title: "Toe clearance and gait phase are pure heuristics", body: "Both are simple rule-based approximations with no biomechanical calibration. Should be presented as approximations, not measurements." },
+    { sev: "bl", label: "Low", title: "Recursive MAT traversal has no depth limit", body: "_iter_mat_values() can stack overflow on deeply nested or circular MATLAB structures. A depth counter would add safety." }
+  ];
+
+  var quick = [
+    { title: "Replace single split with 5-fold CV", detail: "Swap train_test_split for StratifiedKFold in _train_classifier(). Much more reliable accuracy estimate." },
+    { title: "Time-normalize velocity features", detail: "Pass the downsampling stride into _extract_window_features() and divide velocity by it. Eliminates scale inconsistency." },
+    { title: "Reduce RandomForest to 100 estimators", detail: "Faster inference, negligible accuracy loss at 434 samples. Change n_estimators=350 to 100." },
+    { title: "Add stair_down and ramp_down labels", detail: "Extend _derive_labels_from_path() with filename keyword matching (e.g. _desc_) to capture descent locomotion." },
+    { title: "Replace energy with spectral centroid", detail: "Remove the redundant variance feature and add a frequency-domain feature that carries new information." }
+  ];
+
+  var medium = [
+    { title: "Sliding-window feature extraction", detail: "30-sample windows with 50% overlap grows training set from 434 to ~15–20K windows and matches the runtime window size." },
+    { title: "Add full AB dataset (AB09–AB23)", detail: "More subjects = better inter-subject generalization without any labeling work." },
+    { title: "Expose sample rate as a runtime parameter", detail: "Accept hz from the Flutter app and use it in cadence_spm() and velocity normalization." },
+    { title: "Widen anomaly normalization band", detail: "Use p10 instead of p05 as the upper normalization boundary for more stable anomaly scores." },
+    { title: "Add per-class F1 to metadata", detail: "Overall accuracy hides treadmill class underperformance. Per-class precision/recall reveals it quantitatively." }
+  ];
+
+  var longterm = [
+    { title: "Collect patient gait data and per-patient baselines", detail: "Post-stroke, TKA, hip OA data. Retrain anomaly detector per patient for personalized normals." },
+    { title: "Replace hand-crafted features with 1D CNN", detail: "Temporal convolutional network trained end-to-end learns optimal features and generalizes better." },
+    { title: "Integrate EMG modality", detail: "EMG is present in the same Camargo dataset. Neuromuscular context would dramatically improve compensation detection." },
+    { title: "Biomechanically calibrated toe clearance", detail: "Use IMU + foot model to replace the current 8–60mm heuristic with a clinically meaningful measurement." }
+  ];
+
+  function buildFuncList() {
+    var ul = document.getElementById('func-list');
+    funcs.forEach(function (f, i) {
+      var li = document.createElement('li');
+      li.className = 'func-item';
+      li.innerHTML = '<div class="func-header" onclick="toggleFunc(' + i + ')">'
+        + '<span class="func-name">' + f.name + '</span>'
+        + '<span class="func-short">' + f.short + '</span>'
+        + '<span class="func-toggle" id="ft' + i + '">▸</span></div>'
+        + '<div class="func-detail" id="fd' + i + '">'
+        + '<span class="dk">Purpose</span><span class="dv">' + f.purpose + '</span>'
+        + '<span class="dk">Inputs</span><span class="dv">' + f.inputs + '</span>'
+        + '<span class="dk">Returns</span><span class="dv">' + f.returns + '</span>'
+        + '<span class="dk">Edge cases</span><span class="dv">' + f.edge + '</span>'
+        + '</div>';
+      ul.appendChild(li);
+    });
+  }
+
+  function toggleFunc(i) {
+    var d = document.getElementById('fd' + i);
+    var t = document.getElementById('ft' + i);
+    var open = d.classList.toggle('open');
+    t.textContent = open ? '▾' : '▸';
+  }
+
+  function buildRisks() {
+    var c = document.getElementById('risk-list');
+    risks.forEach(function (r) {
+      c.innerHTML += '<div class="risk-item"><div class="risk-top"><span class="badge ' + r.sev + '">' + r.label + '</span><span class="risk-title">' + r.title + '</span></div><div class="risk-body">' + r.body + '</div></div>';
+    });
+  }
+
+  function buildRoadmap() {
+    function renderList(id, arr, dotClass) {
+      var c = document.getElementById(id);
+      arr.forEach(function (item) {
+        c.innerHTML += '<div class="impr-row"><div class="impr-dot ' + dotClass + '"></div><div class="impr-text"><strong>' + item.title + '</strong> — ' + item.detail + '</div></div>';
+      });
+    }
+    renderList('quick-wins', quick, 'dot-green');
+    renderList('medium-wins', medium, 'dot-amber');
+    renderList('long-wins', longterm, 'dot-blue');
+  }
+
+  function show(id, el) {
+    document.querySelectorAll('.section').forEach(function (s) { s.classList.remove('active') });
+    document.querySelectorAll('.nav-item').forEach(function (n) { n.classList.remove('active') });
+    document.getElementById(id).classList.add('active');
+    el.classList.add('active');
+  }
+
+  buildFuncList();
+  buildRisks();
+  buildRoadmap();
+</script>
