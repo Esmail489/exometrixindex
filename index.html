@@ -284,12 +284,72 @@ pre {
 .impr-row { display: flex; gap: 1.5rem; margin-bottom: 2.5rem; align-items: flex-start; }
 .impr-dot { width: 4px; height: 4px; border-radius: 50%; margin-top: 0.9rem; flex-shrink: 0; background: var(--color-primary); }
 
-@media (max-width: 1024px) {
+@media (max-width: 768px) {
   .layout { flex-direction: column; }
-  .sidebar { width: 100%; height: auto; padding: 2rem; border-right: none; border-bottom: 1px solid var(--color-border); }
-  .content-wrapper { padding: 2rem 1rem; }
-  .content { padding: 3rem 1.5rem; border: none; }
-  .section-header h2 { font-size: 2.75rem; }
+  
+  .sidebar { 
+    width: 100%; 
+    height: auto; 
+    padding: 1.5rem 1rem; 
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    flex-direction: row;
+    overflow-x: auto;
+    gap: 0.75rem;
+    border-bottom: 1px solid var(--color-border);
+    background-color: rgba(249, 248, 246, 0.95);
+    backdrop-filter: blur(8px);
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  .sidebar::-webkit-scrollbar { display: none; }
+  
+  .sidebar-title { display: none; }
+  
+  .nav-item {
+    white-space: nowrap;
+    padding: 0.5rem 1rem;
+    font-size: 0.85rem;
+    background-color: var(--color-bg-card);
+    border: 1px solid var(--color-border);
+  }
+
+  .content-wrapper { padding: 1rem; }
+  
+  .content { 
+    padding: 3rem 1.5rem; 
+    border-radius: var(--radius-md);
+    box-shadow: none;
+    border-color: var(--color-border-soft);
+  }
+  
+  .section-header h2 { font-size: 2.5rem; }
+  .section-header p { font-size: 1.1rem; }
+  
+  h3 { font-size: 1.5rem; margin: 3rem 0 1rem; }
+  
+  .metrics { 
+    grid-template-columns: 1fr; 
+    gap: 1.5rem; 
+    padding: 1.5rem; 
+    margin: 2rem 0;
+  }
+  
+  .metric .val { font-size: 2.25rem; }
+  
+  .func-detail { 
+    grid-template-columns: 1fr; 
+    gap: 0.5rem; 
+    padding-bottom: 2rem;
+  }
+  
+  .feat-grid { gap: 2rem; }
+  
+  .label-table { display: block; overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  
+  .risk-title { font-size: 1.3rem; }
+  .audience-who { font-size: 2rem; }
 }
 </style>
 
