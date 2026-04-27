@@ -406,10 +406,14 @@ pre {
         <h2>Executive summary</h2>
         <p>What the code does and what it produced</p>
       </div>
-      <p>ExoMetrix trains a two-stage ML pipeline for real-time gait analysis. The code reads raw goniometer (joint
-        angle) data from the Camargo et al. AB subject biomechanics dataset, extracts signals from MATLAB files,
-        calibrates them to a clinical range, then trains three models that ship together as a single
-        <code>.joblib</code> artifact.</p>
+      <p>ExoMetrix trains a two-stage ML pipeline for real-time gait analysis. The workflow reads raw goniometer
+        (joint angle) data from the Camargo et al. AB subject biomechanics dataset, extracts knee-angle signals from
+        MATLAB files, down-samples to a fixed maximum length, calibrates to a clinical range, and trains three models
+        that ship together as a single <code>.joblib</code> artifact. The same run also produces evaluation plots and a
+        metadata JSON for the API status endpoint.</p>
+      <p><strong>What this documentation covers in detail:</strong> discovery rules, signal extraction fallbacks,
+        calibration math, feature definitions (including stride-normalized velocity), label heuristics, model
+        training (holdout + cross-validation), evaluation outputs, and export format.</p>
       <div class="metrics">
         <div class="metric">
           <div class="lbl">Subjects</div>
@@ -432,6 +436,9 @@ pre {
           <div class="val">14</div>
         </div>
       </div>
+      <p><strong>Evaluation outputs:</strong> holdout accuracy for activity and intention, baseline accuracy,
+        StratifiedKFold mean and standard deviation, confusion matrix, feature importance, correlation heatmap, PCA
+        projection, learning curve, and distribution plots.</p>
       <h3>Three models trained</h3>
       <div class="risk-item">
         <div class="risk-top"><span class="badge bi">1</span><span class="risk-title">Anomaly detector —
@@ -452,7 +459,7 @@ pre {
           activity classifier, different labels.</div>
       </div>
       <h3>Runtime outputs per prediction call</h3>
-      <p>Step quality classification · Assistance percentage (0–95%) · Anomaly score (0–1) · Activity class · Intention
+      <p>Step quality classification · Assistance percentage (0-95%) · Anomaly score (0-1) · Activity class · Intention
         class · Cadence (steps/min) · Toe clearance (mm) · Gait phase · Model confidence</p>
     </div>
 
@@ -462,53 +469,71 @@ pre {
         <p>What happens from running the script to saving the model</p>
       </div>
       <div class="flow">
-        <div class="flow-step">1. Parse CLI args</div><span class="flow-arrow">→</span>
-        <div class="flow-step">2. Discover subjects</div><span class="flow-arrow">→</span>
-        <div class="flow-step">3. Load MAT files</div><span class="flow-arrow">→</span>
-        <div class="flow-step">4. Extract signals</div><span class="flow-arrow">→</span>
-        <div class="flow-step">5. Calibrate angles</div><span class="flow-arrow">→</span>
-        <div class="flow-step">6. Train anomaly model</div><span class="flow-arrow">→</span>
-        <div class="flow-step">7. Compute features</div><span class="flow-arrow">→</span>
-        <div class="flow-step">8. Train classifiers</div><span class="flow-arrow">→</span>
-        <div class="flow-step">9. Save artifact</div>
+        <div class="flow-step">1. Parse CLI args and resolve paths</div><span class="flow-arrow">→</span>
+        <div class="flow-step">2. Discover subjects and sessions</div><span class="flow-arrow">→</span>
+        <div class="flow-step">3. Load MAT files (scipy → h5py fallback)</div><span class="flow-arrow">→</span>
+        <div class="flow-step">4. Extract best angle signal + downsample</div><span class="flow-arrow">→</span>
+        <div class="flow-step">5. Calibrate pooled angles</div><span class="flow-arrow">→</span>
+        <div class="flow-step">6. Train IsolationForest + score stats</div><span class="flow-arrow">→</span>
+        <div class="flow-step">7. Build feature matrix + labels</div><span class="flow-arrow">→</span>
+        <div class="flow-step">8. Train classifiers + baseline</div><span class="flow-arrow">→</span>
+        <div class="flow-step">9. Cross-validation and plots</div><span class="flow-arrow">→</span>
+        <div class="flow-step">10. Save artifacts and metadata</div>
       </div>
 
-      <h3>Step 1 — argument parsing</h3>
+      <h3>Step 1 — argument parsing and path setup</h3>
       <p>The CLI accepts <code>--dataset-root</code>, <code>--subject-glob</code>, <code>--output-model</code>, and
-        <code>--output-meta</code>. Defaults assume the training script lives two levels below the dataset root.</p>
+        <code>--output-meta</code>. Defaults assume the training script lives two levels below the dataset root. Paths
+        are resolved into absolute locations for the model artifact and metadata JSON.</p>
 
       <h3>Step 2 — subject discovery</h3>
       <p>Checks whether <code>dataset_root</code> is already a single subject folder (detected by looking for an
-        <code>osimxml/</code> child) or a parent of multiple subjects. Globs for <code>AB*</code> folders containing
-        <code>osimxml/</code>. Works for training on AB06 alone or AB06+AB07+AB08 transparently.</p>
+        <code>osimxml/</code> child) or a parent of multiple subjects. If it is a parent, the code globs for
+        <code>AB*</code> folders. As a final fallback, it searches for any folder that contains <code>gon/*.mat</code>
+        files. This supports AB06-only training or multi-subject training without manual path edits.</p>
 
-      <h3>Step 3 & 4 — MAT loading and signal extraction</h3>
+      <h3>Step 3 — MAT loading</h3>
       <p>Each <code>gon/*.mat</code> file is loaded with scipy first, then h5py as a fallback for MATLAB v7.3 HDF5
-        files. Signal extraction tries normal numpy array traversal first, then falls back to parsing the MATLAB opaque
-        workspace blob as raw float64 bytes. Signals are clipped to −220…+220° and downsampled to at most 2000 samples
-        per file.</p>
+        files. This ensures compatibility across older and newer MATLAB formats.</p>
+
+      <h3>Step 4 — signal extraction and downsampling</h3>
+      <p>Signal extraction walks every numeric array in the MATLAB structure, scores candidates by variance and dynamic
+        range, and selects the most angle-like series. If no candidate is found, the function attempts to decode the
+        MATLAB function workspace blob as raw float64 data. Signals are filtered to the plausible angle range
+        (-220 to 220) and downsampled to at most 2000 samples using
+        <code>stride = max(1, len(signal) // 2000)</code>. The downsampling stride is saved and used later to normalize
+        velocity features.</p>
 
       <h3>Step 5 — global calibration</h3>
-      <p>All subjects' angles are pooled and linearly rescaled so the 1st–99th percentile range maps to 5°–120° (the
-        typical clinical gait range). Values are hard-clipped to 0–180°. This ensures the anomaly model trains on a
-        clinically meaningful scale.</p>
+      <p>All subjects' angles are pooled and linearly rescaled so the 1st–99th percentile range maps to 5 to 120 degrees
+        (typical clinical gait range). Values are hard-clipped to 0 to 180 degrees. This keeps the anomaly model on a
+        clinically meaningful scale and makes subject data comparable.</p>
 
       <h3>Step 6 — anomaly model training</h3>
       <p>Calibrated angles are reshaped to (N, 1) and standardized with <code>RobustScaler</code>. An
-        <code>IsolationForest</code> with 300 trees and 8% contamination is trained. The 1st and 5th percentile of the
-        resulting decision scores are stored as normalization bounds used at runtime.</p>
+        <code>IsolationForest</code> with 300 trees and 8% contamination is trained. The decision score distribution is
+        summarized and percentiles (p01, p05, p50, p95, p99) are stored for runtime normalization.</p>
 
-      <h3>Step 7 — window features</h3>
-      <p>The script iterates the same MAT files a second time. Each file's full signal is treated as one window, and 14
-        statistical features are computed from it. Labels come from the file's directory path.</p>
+      <h3>Step 7 — window features and labels</h3>
+      <p>The script iterates the MAT files a second time. Each file's full signal is treated as one window and 14
+        statistical features are computed. Velocity features use <code>np.diff()</code> divided by the saved
+        downsampling stride, which stabilizes scale across files. Labels come from the file path and filename
+        heuristics.</p>
 
-      <h3>Step 8 — classifier training</h3>
-      <p>Both RandomForest classifiers receive the same 434-row feature matrix. An 80/20 stratified split validates
-        accuracy. Both scored 93.1% on the 87-window holdout.</p>
+      <h3>Step 8 — classifier training and baseline</h3>
+      <p>Both RandomForest classifiers receive the same feature matrix. An 80/20 stratified split validates accuracy
+        when all classes have at least 2 samples. A most-frequent baseline model is trained on the same split to show
+        the minimum performance a trivial classifier would achieve.</p>
 
-      <h3>Step 9 — artifact saving</h3>
+      <h3>Step 9 — cross-validation and plots</h3>
+      <p>For activity classification, StratifiedKFold cross-validation is computed (up to 5 folds based on the smallest
+        class). A learning curve is generated from the same folds. Additional plots include a confusion matrix, feature
+        correlation heatmap, PCA projection, feature importance, and label distributions.</p>
+
+      <h3>Step 10 — artifact saving</h3>
       <p>Everything is packed into a single dict and saved with <code>joblib.dump()</code>. A JSON metadata file is also
-        written for the Flask backend status endpoint.</p>
+        written for the Flask backend status endpoint. Metadata includes counts, label distributions, validation and
+        baseline accuracy, cross-validation mean and standard deviation, and a flag showing velocity normalization.</p>
     </div>
 
     <div class="section" id="s3">
@@ -524,9 +549,9 @@ pre {
         <h2>Feature engineering</h2>
         <p>The 14 statistical features computed per window</p>
       </div>
-      <p>Each MAT file is treated as one signal window. 14 statistics are extracted — 8 positional, 4 velocity-based, 1
-        energy, 1 temporal structure metric. Velocity is computed as first differences of sample values, not
-        time-normalized.</p>
+      <p>Each MAT file is treated as one signal window. 14 statistics are extracted: 8 positional, 4 velocity-based, 1
+        energy, and 1 temporal structure metric. Velocity is computed as first differences and then divided by the
+        downsampling stride to keep per-file scales consistent.</p>
       <div class="feat-grid">
         <div class="feat">
           <div class="feat-name">mean_angle</div>
@@ -570,22 +595,22 @@ pre {
         </div>
         <div class="feat">
           <div class="feat-name">mean_abs_velocity</div>
-          <div class="feat-math">(1/N−1) Σ |Δxᵢ|</div>
+          <div class="feat-math">mean(|dx|) / stride</div>
           <div class="feat-why">Average angular speed. Running → high; slow walking → low</div>
         </div>
         <div class="feat">
           <div class="feat-name">std_velocity</div>
-          <div class="feat-math">σ(Δx)</div>
+          <div class="feat-math">std(dx / stride)</div>
           <div class="feat-why">Speed irregularity. High for stairs, low for treadmill</div>
         </div>
         <div class="feat">
           <div class="feat-name">max_velocity</div>
-          <div class="feat-math">max(Δx)</div>
+          <div class="feat-math">max(dx / stride)</div>
           <div class="feat-why">Peak forward angular acceleration</div>
         </div>
         <div class="feat">
           <div class="feat-name">min_velocity</div>
-          <div class="feat-math">min(Δx)</div>
+          <div class="feat-math">min(dx / stride)</div>
           <div class="feat-why">Peak reverse angular acceleration</div>
         </div>
         <div class="feat">
@@ -600,9 +625,10 @@ pre {
         </div>
       </div>
       <p
-        style="font-size:12px;color:var(--color-text-secondary);background:var(--color-background-secondary);padding:8px 10px;border-radius:var(--border-radius-md)">
-        <span class="badge bm">Note</span> Velocity features are not time-normalized. Files are downsampled at different
-        strides (step = size ÷ 2000), so velocity units differ across files — a known design issue.</p>
+        style="font-size:12px;color:var(--color-text-muted);background:var(--color-bg-main);padding:8px 10px;border-radius:var(--radius-md);border:1px solid var(--color-border-soft)">
+        <span class="badge bm">Note</span> Velocity features are normalized by the downsampling stride. This makes
+        per-file velocity values comparable, but still not true time-based velocity because the real sampling rate is
+        not passed into training.</p>
     </div>
 
     <div class="section" id="s5">
@@ -729,6 +755,11 @@ pre {
         requires ≥2 per class in both sets). In the current snapshot neither applies, so validation was performed —
         87-window holdout, single split, 93.1% accuracy.</p>
 
+      <h3>Cross-validation and baseline</h3>
+      <p>StratifiedKFold cross-validation is run on activity labels to estimate stability across folds. This is still a
+        window-level split (not leave-one-subject-out), so results may be optimistic for new subjects. A most-frequent
+        baseline classifier is also reported to show how much the RandomForest improves over trivial prediction.</p>
+
       <h3>The anomaly score normalization</h3>
       <p>Raw IsolationForest scores have no natural 0–1 scale. The code stores training score percentiles p01 and p05.
         At runtime: <code>anomaly_strength = clip((p05 − score) / (p05 − p01), 0, 1)</code>. Current values: p01=−0.113,
@@ -813,31 +844,39 @@ pre {
         </thead>
         <tbody>
           <tr>
-            <td><code>feature_rows_per_subject</code></td>
-            <td>143 / 153 / 138</td>
-            <td>How many MAT files successfully parsed — proxy for data completeness</td>
+            <td><code>subject_count</code></td>
+            <td>3</td>
+            <td>Number of AB subjects included in training</td>
+          </tr>
+          <tr>
+            <td><code>window_count</code></td>
+            <td>434</td>
+            <td>Number of feature windows (one per MAT file)</td>
           </tr>
           <tr>
             <td><code>val_accuracy</code></td>
             <td>0.931</td>
-            <td>Both classifiers share this value because activity and intention labels are 1:1 correlated in this
-              dataset</td>
+            <td>Holdout accuracy from the 80/20 stratified split</td>
           </tr>
           <tr>
-            <td><code>p01 / p05</code> (scores)</td>
-            <td>−0.113 / −0.027</td>
-            <td>Normalization band = 0.086. Very narrow — scores near boundary will be noisy</td>
+            <td><code>baseline_accuracy</code></td>
+            <td>varies</td>
+            <td>Most-frequent class accuracy on the same holdout split</td>
           </tr>
           <tr>
-            <td><code>p01 / p99</code> (angles)</td>
-            <td>−0.11° / 120°</td>
-            <td>Confirms calibration worked — lower bound ≈ 0°, upper = 120° target hit</td>
+            <td><code>cv_accuracy_mean / cv_accuracy_std</code></td>
+            <td>varies</td>
+            <td>StratifiedKFold accuracy mean and standard deviation (activity classifier)</td>
+          </tr>
+          <tr>
+            <td><code>velocity_normalized</code></td>
+            <td>true</td>
+            <td>Velocity features divided by downsampling stride</td>
           </tr>
           <tr>
             <td><code>data_decoder</code></td>
             <td>function_workspace_f64_fallback</td>
-            <td>Records that the opaque workspace decoder was active — important for debugging future parse failures
-            </td>
+            <td>Indicates the opaque MATLAB workspace decoder was used</td>
           </tr>
         </tbody>
       </table>
@@ -873,7 +912,7 @@ pre {
 
       <div class="cmd-block">
         <div class="cmd-label">Install dependencies</div>
-        <pre>pip install numpy scipy h5py scikit-learn joblib</pre>
+        <pre>pip install numpy scipy h5py scikit-learn joblib matplotlib seaborn</pre>
       </div>
       <div class="cmd-block">
         <div class="cmd-label">Train — single subject</div>
@@ -912,7 +951,8 @@ print(result)
       <div class="cmd-block">
         <div class="cmd-label">Start Flask server</div>
         <pre>cd backend
-flask run --host=0.0.0.0 --port=5000</pre>
+      python api/index.py
+      # default: http://0.0.0.0:5328</pre>
       </div>
       <div class="cmd-block">
         <div class="cmd-label">Expected dataset folder structure</div>
@@ -943,7 +983,7 @@ flask run --host=0.0.0.0 --port=5000</pre>
           <p>Currently the system has been trained on only three healthy volunteers. It has not been tested on patients
             recovering from injury or surgery. Estimates for toe clearance and walking phase are approximations, not
             clinical measurements. Before clinical deployment, the system should be validated against real patient data
-            and outputs — particularly step quality — should be reviewed by a clinician familiar with the patient
+            and outputs - particularly step quality - should be reviewed by a clinician familiar with the patient
             population.</p>
         </div>
         <div class="audience-card">
@@ -953,10 +993,10 @@ flask run --host=0.0.0.0 --port=5000</pre>
             balanced_subsample) trained on 14 hand-crafted stats per-file window (434 total). Labels are path-derived —
             no annotation file.</p>
           <p>Main technical risks: (1) one vector per file vs. the 120-sample runtime window — training and inference
-            features are computed at different temporal scales; (2) velocity features not time-normalized due to
-            variable downsampling strides; (3) anomaly score normalization band of 0.086 is narrow and noisy near the
-            boundary; (4) 93.1% accuracy is a single-split estimate on 87 samples. Priority fixes: sliding-window
-            extraction, k-fold CV, time-normalized velocity, and descent locomotion labels.</p>
+            features are computed at different temporal scales; (2) velocity is normalized by downsampling stride but
+            still lacks true time normalization (no Hz); (3) anomaly score normalization band is narrow and noisy near
+            the boundary; (4) cross-validation is window-level, not leave-one-subject-out. Priority fixes: sliding-window
+            extraction, subject-wise validation, explicit sample-rate handling, and descent locomotion labels.</p>
         </div>
       </div>
     </div>
@@ -967,49 +1007,52 @@ flask run --host=0.0.0.0 --port=5000</pre>
 
 <script>
   var funcs = [
-    { name: "_extract_from_function_workspace()", short: "Decodes MATLAB opaque blobs as raw float64", purpose: "Best-effort decoder for AB06-style MATLAB MCOS table files. Tries 8 byte offsets to handle misalignment. Scores candidates by dynamic range + valid point count.", inputs: "mat_obj dict from scipy", returns: "ndarray or None", edge: "Returns None if blob < 800 bytes. Permissive −220…+220° range to capture all joint kinematic traces." },
-    { name: "_calibrate_to_app_angle_range()", short: "Maps raw angles to 5°–120° clinical range", purpose: "Linear rescale of 1st–99th percentile to 5–120°, then hard-clip to 0–180°. Ensures all subject data lands on the same clinical scale regardless of raw sensor range.", inputs: "raw_angles: ndarray", returns: "calibrated ndarray", edge: "If p1≈p99 (flat signal), clips without scaling. Does not handle negative inputs gracefully — expects pre-filtered −220…+220°." },
-    { name: "_iter_mat_values()", short: "Recursive MAT structure flattener", purpose: "Generator that traverses any scipy MAT structure (nested structs, object arrays, dicts, lists) and yields all numeric arrays. Handles mat_struct via _fieldnames.", inputs: "Any MAT node", returns: "Iterable[ndarray]", edge: "No depth limit — could stack overflow on deeply nested files. Skips keys starting with __ (MATLAB metadata)." },
-    { name: "_load_mat_file()", short: "Loads .mat files with scipy or h5py fallback", purpose: "Tries scipy loadmat first (works for MATLAB <7.3). Falls back to h5py for MATLAB v7.3 HDF5 format. Raises RuntimeError if both fail.", inputs: "path: Path", returns: "dict-like MAT object", edge: "h5py path returns raw numpy arrays without MATLAB struct metadata — some field names may be lost." },
-    { name: "_choose_signal()", short: "Picks the best angle-like time series", purpose: "Scores each candidate array by: variance + 10% of dynamic range + 10× fraction of values within −200…+220°. Selects the highest-scoring series. For multi-column arrays, picks the column with highest std.", inputs: "arrays: List[ndarray]", returns: "ndarray or None", edge: "Requires ≥40 finite values. Angle-plausibility term dominates if the range is compact. May pick a non-angle signal if all angles are flat." },
-    { name: "_extract_best_signal()", short: "Orchestrates signal extraction with downsampling", purpose: "Tries normal path (_iter_mat_values → _choose_signal) first. Falls back to workspace decoder. Applies outlier filter and optional uniform-stride downsampling.", inputs: "mat_obj, max_per_file (optional)", returns: "ndarray or None", edge: "Uniform stride downsampling preserves temporal structure but creates systematic gaps. Random downsampling would be less biased." },
-    { name: "_count_peaks()", short: "Counts local maxima above adaptive threshold", purpose: "Counts local maxima using a 3-point rule: value[i] > value[i-1] and value[i] >= value[i+1] and value[i] > mean + 0.25×std. Used for peak_density feature and cadence estimation.", inputs: "values: ndarray", returns: "int", edge: "Returns 0 for < 3 values. Can double-count wide flat peaks. Threshold is adaptive per window." },
-    { name: "_extract_window_features()", short: "Computes the 14-element feature vector", purpose: "Calculates all 14 features from a signal window: 8 positional stats, 4 velocity-based stats, energy (variance), and peak_density. Pads signals shorter than 6 samples with the last value.", inputs: "values: ndarray", returns: "ndarray[14] float64", edge: "Velocity uses sample-index differences, not time differences. Padding with last value may inflate std for very short windows." },
-    { name: "_derive_labels_from_path()", short: "Infers labels from directory and filename", purpose: "Reads activity class from the grandparent folder name (gon → locomotion type → subject). Reads intention class from filename stem heuristics (_fast_ → running). No annotation file is used.", inputs: "mat_path: Path", returns: "(activity_str, intention_str)", edge: "Unknown folders fall back to activity='unknown', intention='walking'. Descent locomotion (stair down, ramp down) is not captured." },
-    { name: "_collect_labeled_feature_rows()", short: "Builds feature matrix + labels for one subject", purpose: "Iterates all gon MAT files for one subject. For each: loads, extracts signal, calibrates, computes one feature vector, derives labels. Silently skips files that fail to parse.", inputs: "subject_root: Path", returns: "(features, activity_labels, intention_labels)", edge: "One vector per file — entire file collapsed to summary stats. Intra-trial variability is lost." },
-    { name: "_train_classifier()", short: "Trains RandomForest with optional validation", purpose: "Fits a 350-tree RandomForest with balanced_subsample class weights. If ≥30 samples and every class has ≥2 members, uses 80/20 stratified split for validation and records accuracy.", inputs: "X: ndarray, y: list[str]", returns: "(clf or None, metrics dict)", edge: "Returns None classifier if fewer than 2 distinct classes. Validation skipped if any class has < 2 members." },
-    { name: "_collect_angles()", short: "Collects all raw angle samples for anomaly training", purpose: "Walks all gon/*.mat files for one subject. Concatenates all extracted signals into one long array for fitting the IsolationForest.", inputs: "gon_dir: Path, max_per_file", returns: "ndarray 1D", edge: "Raises FileNotFoundError if no .mat files found. Raises RuntimeError if total < 100 samples." },
-    { name: "_resolve_subject_roots()", short: "Auto-detects single vs multi-subject root", purpose: "Checks for osimxml/ child to identify a subject folder. If not found directly, globs for AB* subfolders. Falls back to treating the provided path as a single data root.", inputs: "dataset_root: Path, subject_glob: str", returns: "List[Path]", edge: "osimxml/ detection is specific to the Camargo AB dataset structure — won't work for other dataset layouts." },
-    { name: "train_model()", short: "Top-level orchestrator", purpose: "Chains all steps: subject discovery, angle collection, calibration, anomaly model training, feature extraction, classifier training, artifact and metadata saving.", inputs: "4 Path arguments", returns: "Side effects: 2 files written", edge: "Global calibration (pooled subjects) for anomaly model but per-file calibration for supervised features — these scales may not be fully consistent." }
+    { name: "ensure_packages()", short: "Installs missing Python packages", purpose: "Attempts to import required libraries and installs any missing ones via pip.", inputs: "package_map: dict", returns: "None", edge: "Fails if the environment is offline or pip is unavailable." },
+    { name: "print_section()", short: "Prints formatted section headers", purpose: "Adds visual separators to make notebook logs easier to scan.", inputs: "title: str, width: int", returns: "None", edge: "Pure formatting; no side effects beyond stdout." },
+    { name: "safe_percentile()", short: "Percentile with NaN safety", purpose: "Filters non-finite values before computing a percentile.", inputs: "values: ndarray, p: float", returns: "float", edge: "Returns NaN if all values are non-finite." },
+    { name: "describe_vector()", short: "Prints summary stats for a vector", purpose: "Reports min, max, mean, std, and selected percentiles for quick inspection.", inputs: "values: ndarray, label: str", returns: "None", edge: "Assumes values contain at least one finite value." },
+    { name: "train_classifier()", short: "Trains RandomForest with optional validation", purpose: "Fits a balanced RandomForest and, when possible, evaluates it on an 80/20 stratified split.", inputs: "X: ndarray, labels: list[str]", returns: "(classifier, metrics dict)", edge: "Validation is skipped if a class has fewer than 2 members." },
+    { name: "discover_subjects()", short: "Finds subject roots", purpose: "Detects single-subject vs multi-subject layouts using osimxml or gon/mat structure.", inputs: "data_root: Path, subject_glob: str", returns: "List[Path]", edge: "Falls back to data_root if no matches are found." },
+    { name: "load_mat_file()", short: "Loads .mat files with fallback", purpose: "Uses scipy for MATLAB < 7.3 files and h5py for v7.3 HDF5 files.", inputs: "path: Path", returns: "dict-like MAT object", edge: "HDF5 loading does not preserve MATLAB struct metadata." },
+    { name: "iter_mat_values()", short: "Traverses nested MAT structures", purpose: "Recursively yields all numeric arrays from MATLAB dicts, structs, and object arrays.", inputs: "node: any", returns: "Iterable[ndarray]", edge: "No depth limit; deeply nested files could overflow recursion." },
+    { name: "extract_from_function_workspace()", short: "Decodes MATLAB opaque workspace blobs", purpose: "Tries multiple byte offsets to decode float64 arrays from the hidden workspace field.", inputs: "mat_obj: dict", returns: "ndarray or None", edge: "Returns None if the blob is too small or not decodable." },
+    { name: "choose_signal()", short: "Selects the most angle-like series", purpose: "Scores candidates by variance, dynamic range, and value plausibility.", inputs: "arrays: list[ndarray]", returns: "ndarray or None", edge: "Requires at least 40 finite samples." },
+    { name: "downsample_signal()", short: "Uniform downsampling with stride", purpose: "Downsamples to max_per_file and returns the stride used.", inputs: "signal: ndarray, max_per_file: int", returns: "(ndarray, stride)", edge: "Stride is 1 when no downsampling occurs." },
+    { name: "extract_best_signal()", short: "Orchestrates extraction + downsampling", purpose: "Runs choose_signal with fallback to workspace decoding and applies clipping and downsampling.", inputs: "mat_obj, max_per_file, return_stride", returns: "ndarray or (ndarray, stride)", edge: "Returns None if no valid signal is found." },
+    { name: "calibrate_to_app_angle_range()", short: "Maps raw angles to 5-120 deg", purpose: "Linearly maps p01 to 5 and p99 to 120, then clips to 0-180.", inputs: "raw_angles: ndarray", returns: "ndarray", edge: "If p01 ~= p99, values are clipped without scaling." },
+    { name: "collect_all_angles()", short: "Pools all angles for anomaly training", purpose: "Concatenates valid signals from all subjects for IsolationForest training.", inputs: "subject_roots: list[Path]", returns: "ndarray", edge: "Raises if no valid signals are found." },
+    { name: "count_peaks()", short: "Counts local maxima above adaptive threshold", purpose: "Counts peaks using a 3-point rule and mean+0.25*std threshold.", inputs: "values: ndarray", returns: "int", edge: "Returns 0 for fewer than 3 samples." },
+    { name: "extract_window_features()", short: "Computes the 14-element feature vector", purpose: "Computes positional stats, stride-normalized velocity stats, energy, and peak density.", inputs: "values: ndarray, velocity_stride: int", returns: "ndarray[14]", edge: "Pads short signals to length 6 using the last value." },
+    { name: "collect_labeled_features()", short: "Builds feature matrix + labels", purpose: "Loads each MAT file, extracts a signal, calibrates it, computes features, and derives labels from the path.", inputs: "subject_roots: list[Path]", returns: "features, activity_labels, intention_labels, paths, strides", edge: "Unknown folders map to activity='unknown' and intention='walking'." }
   ];
 
   var risks = [
-    { sev: "bh", label: "High", title: "Descent locomotion is unlabelled", body: "Both stair descent and ramp descent map to 'upstairs' and 'ramp_up'. A patient descending stairs will be confidently misclassified. This is a structural labeling gap, not a data quality issue." },
-    { sev: "bh", label: "High", title: "93.1% accuracy on 87 samples is a weak estimate", body: "A single 80/20 split on 434 samples gives 87 validation windows. Confidence interval is roughly ±5–6%. 5-fold cross-validation would give a much more reliable estimate and is a quick fix." },
-    { sev: "bh", label: "High", title: "Training population: 3 able-bodied young adults", body: "The model has never seen pathological gait, elderly movement, or post-surgical compensation. Clinical deployment without prospective patient validation carries significant risk." },
-    { sev: "bm", label: "Med", title: "Velocity features are not time-normalized", body: "np.diff(values) produces sample-to-sample differences. Files are downsampled at different strides, so velocity units differ across files — noise in all 4 velocity features." },
-    { sev: "bm", label: "Med", title: "Anomaly score normalization denominator is very small", body: "p05 − p01 ≈ 0.086. A score fluctuation of 0.05 changes normalized anomaly_score by ~58%. Widening to p10 − p01 would give more stable values." },
-    { sev: "bm", label: "Med", title: "One feature vector per file — no sliding windows", body: "Each multi-second MAT file collapses to one feature vector. A 30-sample sliding window with 50% overlap would increase training data ~40× and better match the 120-sample runtime window." },
-    { sev: "bm", label: "Med", title: "Runtime sample rate hardcoded at 10 Hz", body: "cadence_spm() assumes 10 samples/sec. If the Flutter app sends data at a different rate (common in BLE IMU pipelines), cadence will be proportionally wrong." },
-    { sev: "bl", label: "Low", title: "energy feature is redundant with std_angle", body: "energy = mean((x − mean(x))²) is exactly variance = std². Not harmful but wastes one of 14 feature slots." },
-    { sev: "bl", label: "Low", title: "Toe clearance and gait phase are pure heuristics", body: "Both are simple rule-based approximations with no biomechanical calibration. Should be presented as approximations, not measurements." },
-    { sev: "bl", label: "Low", title: "Recursive MAT traversal has no depth limit", body: "_iter_mat_values() can stack overflow on deeply nested or circular MATLAB structures. A depth counter would add safety." }
+    { sev: "bh", label: "High", title: "Descent locomotion is unlabeled", body: "Stair descent and ramp descent map to 'upstairs' and 'ramp_up'. A patient descending stairs will be misclassified." },
+    { sev: "bh", label: "High", title: "Training population is small and healthy only", body: "Only 3 able-bodied subjects are included. There is no patient gait in training." },
+    { sev: "bm", label: "Med", title: "Window-level validation only", body: "Cross-validation is per-window, not leave-one-subject-out. Generalization to new subjects is still uncertain." },
+    { sev: "bm", label: "Med", title: "Velocity normalization is approximate", body: "Velocity is divided by downsampling stride, but the true sampling rate is unknown. Values are not in degrees per second." },
+    { sev: "bm", label: "Med", title: "One feature vector per file", body: "Each MAT file collapses to one vector. Runtime uses shorter windows, so temporal dynamics are underrepresented." },
+    { sev: "bm", label: "Med", title: "Anomaly score normalization band is narrow", body: "p05 minus p01 is small, so minor score changes produce large anomaly_strength swings." },
+    { sev: "bm", label: "Med", title: "Runtime sample rate assumption", body: "Cadence and gait phase assume 10 Hz. Different device rates will skew values." },
+    { sev: "bl", label: "Low", title: "energy feature is redundant", body: "Energy equals variance (std^2), so it adds little signal." },
+    { sev: "bl", label: "Low", title: "Toe clearance and gait phase are heuristic", body: "Rules are not biomechanically calibrated and should be treated as approximations." },
+    { sev: "bl", label: "Low", title: "Recursive MAT traversal has no depth limit", body: "Deep or cyclic structures could overflow recursion." }
   ];
 
   var quick = [
-    { title: "Replace single split with 5-fold CV", detail: "Swap train_test_split for StratifiedKFold in _train_classifier(). Much more reliable accuracy estimate." },
-    { title: "Time-normalize velocity features", detail: "Pass the downsampling stride into _extract_window_features() and divide velocity by it. Eliminates scale inconsistency." },
-    { title: "Reduce RandomForest to 100 estimators", detail: "Faster inference, negligible accuracy loss at 434 samples. Change n_estimators=350 to 100." },
-    { title: "Add stair_down and ramp_down labels", detail: "Extend _derive_labels_from_path() with filename keyword matching (e.g. _desc_) to capture descent locomotion." },
-    { title: "Replace energy with spectral centroid", detail: "Remove the redundant variance feature and add a frequency-domain feature that carries new information." }
+    { title: "Stratified CV for activity (implemented)", detail: "Activity classifier now reports k-fold mean and std accuracy." },
+    { title: "Stride-normalized velocity (implemented)", detail: "Velocity features are divided by downsampling stride to keep per-file scales consistent." },
+    { title: "Baseline comparison (implemented)", detail: "Most-frequent baseline accuracy is reported beside RandomForest." },
+    { title: "Add stair_down and ramp_down labels", detail: "Extend filename heuristics with tags like _desc_ to capture descent locomotion." },
+    { title: "Reduce RandomForest to 100 estimators", detail: "Optional speed improvement with minimal accuracy loss at this dataset size." }
   ];
 
   var medium = [
-    { title: "Sliding-window feature extraction", detail: "30-sample windows with 50% overlap grows training set from 434 to ~15–20K windows and matches the runtime window size." },
-    { title: "Add full AB dataset (AB09–AB23)", detail: "More subjects = better inter-subject generalization without any labeling work." },
-    { title: "Expose sample rate as a runtime parameter", detail: "Accept hz from the Flutter app and use it in cadence_spm() and velocity normalization." },
-    { title: "Widen anomaly normalization band", detail: "Use p10 instead of p05 as the upper normalization boundary for more stable anomaly scores." },
-    { title: "Add per-class F1 to metadata", detail: "Overall accuracy hides treadmill class underperformance. Per-class precision/recall reveals it quantitatively." }
+    { title: "Sliding-window feature extraction", detail: "30-sample windows with 50% overlap grows training data and better matches runtime windows." },
+    { title: "Leave-one-subject-out validation", detail: "Report subject-wise generalization instead of only window-level CV." },
+    { title: "Add full AB dataset (AB09-AB23)", detail: "More subjects improve inter-subject generalization without new labels." },
+    { title: "Expose sample rate as a runtime parameter", detail: "Accept Hz from the app and use it for cadence and velocity normalization." },
+    { title: "Add per-class F1 to metadata", detail: "Precision and recall highlight treadmill underperformance better than accuracy." }
   ];
 
   var longterm = [
